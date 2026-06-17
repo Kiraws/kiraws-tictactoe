@@ -1,9 +1,13 @@
 "use client";
+import { usePathname } from "next/navigation";
 import { Sun, Moon } from "@solar-icons/react";
 import { useUser } from "../context/UserContext";
 
 export default function ThemeToggle() {
   const { theme, toggleTheme } = useUser();
+  const pathname = usePathname();
+
+  if (pathname !== "/") return null;
 
   return (
     <button

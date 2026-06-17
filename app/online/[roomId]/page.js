@@ -215,10 +215,10 @@ export default function OnlineGame() {
                        : null;
 
   return (
-    <main className="flex min-h-[100dvh] flex-col items-center justify-between py-8 px-4 bg-[#f5f5fa] dark:bg-[#0d0d14] transition-colors duration-300">
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center gap-5 md:justify-between md:gap-0 py-6 md:py-8 px-4 bg-[#f5f5fa] dark:bg-[#0d0d14] transition-colors duration-300">
 
       {/* Header */}
-      <div className="flex justify-between items-center w-full max-w-[520px] mb-4 pr-12 md:pr-0">
+      <div className="flex justify-between items-center w-full max-w-[520px] mb-5 md:mb-6">
         <button
           onClick={() => handleQuit()}
           className="flex items-center gap-1.5 font-orbitron font-bold text-xs md:text-sm text-black/30 dark:text-white/30 hover:text-black/70 dark:hover:text-white/70 transition-colors"
@@ -247,7 +247,7 @@ export default function OnlineGame() {
       </div>
 
       {/* Board */}
-      <div className="bg-white dark:bg-[#13131f] border border-black/10 dark:border-white/10 w-full max-w-[520px] aspect-square rounded-2xl p-3 md:p-5 mb-6 shadow-sm dark:[box-shadow:0_0_40px_rgba(0,0,0,0.6)] transition-colors duration-300">
+      <div className="bg-white dark:bg-[#13131f] border border-black/10 dark:border-white/10 w-full max-w-[520px] aspect-square rounded-2xl p-3 md:p-5 md:mb-6 shadow-sm dark:[box-shadow:0_0_40px_rgba(0,0,0,0.6)] transition-colors duration-300">
         <div className="grid grid-cols-3 w-full h-full">
           {board.map((cell, idx) => {
             const row = Math.floor(idx / 3);
@@ -272,7 +272,7 @@ export default function OnlineGame() {
       </div>
 
       {/* Scores */}
-      <div className="flex justify-center items-center w-full max-w-[520px] gap-4 md:gap-6">
+      <div className="flex justify-center items-center w-full max-w-[520px] gap-3 md:gap-6">
         <div className="text-center p-3 bg-[#4FC3F7]/15 border border-[#4FC3F7]/40 flex-1 h-16 rounded-2xl">
           <p className="font-orbitron font-bold text-[10px] md:text-xs tracking-wide truncate text-[#0d0d14] dark:text-[#4FC3F7]">
             {myPiece === "x" ? myDisplayName : playerXName}
