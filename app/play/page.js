@@ -1,37 +1,46 @@
 "use client"
-import React, { useState, useEffect } from "react";
-import Modal from "../components/Modal"; // Importation du modal
-import { Inter } from "next/font/google";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import Modal from "../components/Modal";
 import o from "../../public/assets/icons/o.svg";
 import x from "../../public/assets/icons/x.svg";
 import Image from "next/image";
-
-const inter = Inter({ subsets: ["latin"] });
+import { useUser } from "../context/UserContext";
+import { Logout } from "@solar-icons/react";
 
 const Page = () => {
-  const [data, setData] = useState(Array(9).fill(""));
-  const [count, setCount] = useState(0);
-  const [xscore, setXscore] = useState(0);
-  const [oscore, setOscore] = useState(0);
-  const [lock, setLock] = useState(false);
+  const router = useRouter();
+  const { playerX, playerO, setFinalXscore, setFinalOscore } = useUser();
+  const [data, setData]       = useState(Array(9).fill(""));
+  const [count, setCount]     = useState(0);
+  const [xscore, setXscore]   = useState(0);
+  const [oscore, setOscore]   = useState(0);
+  const [lock, setLock]       = useState(false);
   const [clicked, setClicked] = useState(Array(9).fill(false));
-  const [hover, setHover] = useState("hover:bg-[#4FC3F7]");
+  const [hover, setHover]     = useState("hover:bg-[#4FC3F7]/15");
   const [showModal, setShowModal] = useState(false);
-  const [winner, setWinner] = useState(null);
+  const [winner, setWinner]   = useState(null);
+  const [winPattern, setWinPattern] = useState([]);
+  const timerRef = useRef(null);
+
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
+
+  const handleQuit = () => {
+    setFinalXscore(xscore);
+    setFinalOscore(oscore);
+    router.push("/info");
+  };
 
   const toggle = (num) => {
-    if (lock || data[num] !== "") {
-      return;
-    }
-
-    const newData = [...data];
+    if (lock || data[num] !== "") return;
+    const newData    = [...data];
     const newClicked = [...clicked];
     if (count % 2 === 0) {
       newData[num] = "x";
-      setHover("hover:bg-[#FFC107]");
+      setHover("hover:bg-[#FFC107]/15");
     } else {
       newData[num] = "o";
-      setHover("hover:bg-[#4FC3F7]");
+      setHover("hover:bg-[#4FC3F7]/15");
     }
     newClicked[num] = true;
     setData(newData);
@@ -44,135 +53,143 @@ const Page = () => {
     setCount(0);
     setLock(false);
     setClicked(Array(9).fill(false));
-    setHover("hover:bg-[#4FC3F7]");
-    setShowModal(false); // Close the modal on reset
+    setHover("hover:bg-[#4FC3F7]/15");
+    setShowModal(false);
     setWinner(null);
+    setWinPattern([]);
   };
 
   const checkWin = () => {
     const winPatterns = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
-      [0, 4, 8], [2, 4, 6] // Diagonals
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6],
     ];
-
     for (const pattern of winPatterns) {
       const [a, b, c] = pattern;
       if (data[a] && data[a] === data[b] && data[a] === data[c]) {
         setLock(true);
-        setTimeout(() => {
-          won(data[a]);
-        }, 1200);
+        setWinPattern(pattern);
+        timerRef.current = setTimeout(() => won(data[a]), 1200);
         return;
       }
     }
-
-    if (count === 8) {
-      setTimeout(() => {
-        setShowModal(true);
-      }, 1200);
+    if (!data.includes("")) {
+      setLock(true);
+      timerRef.current = setTimeout(() => setShowModal(true), 1200);
+      return;
+    }
+    // Si une seule case reste et qu'elle est gagnante, jouer automatiquement
+    const emptyCells = data.reduce((acc, v, i) => v === "" ? [...acc, i] : acc, []);
+    if (emptyCells.length === 1) {
+      const lastIdx   = emptyCells[0];
+      const nextPiece = count % 2 === 0 ? "x" : "o";
+      const simBoard  = [...data];
+      simBoard[lastIdx] = nextPiece;
+      for (const pattern of winPatterns) {
+        const [a, b, c] = pattern;
+        if (simBoard[a] && simBoard[a] === simBoard[b] && simBoard[a] === simBoard[c]) {
+          timerRef.current = setTimeout(() => toggle(lastIdx), 600);
+          return;
+        }
+      }
     }
   };
 
-  const won = (winner) => {
-    setWinner(winner);
+  const won = (w) => {
+    setWinner(w);
     setShowModal(true);
-    if (winner === "x") {
-      setXscore(xscore + 1);
-    } else if (winner === "o") {
-      setOscore(oscore + 1);
-    }
+    if (w === "x") setXscore(prev => prev + 1);
+    else setOscore(prev => prev + 1);
   };
 
   const renderImage = (num) => {
-    if (data[num] === "x") {
-      return <Image className="w-full h-full" src={x} alt="X" />;
-    } else if (data[num] === "o") {
-      return <Image className="w-full h-full" src={o} alt="O" />;
-    }
+    if (data[num] === "x") return <Image className="w-full h-full p-[20%]" src={x} alt="X" />;
+    if (data[num] === "o") return <Image className="w-full h-full p-[20%]" src={o} alt="O" />;
     return null;
   };
+
   useEffect(() => {
     checkWin();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
+  const isXTurn      = count % 2 === 0;
+  const currentIcon  = isXTurn ? x : o;
+  const currentColor = isXTurn ? "#4FC3F7" : "#FFC107";
+
+  const getCellClass = (num) => {
+    const isWinner = winPattern.includes(num);
+    const winningPiece = winPattern.length > 0 ? data[winPattern[0]] : null;
+    const winGlow  = winningPiece === "x"
+      ? "bg-[#4FC3F7]/20 [box-shadow:0_0_20px_#4FC3F780] ring-2 ring-[#4FC3F7]"
+      : "bg-[#FFC107]/20 [box-shadow:0_0_20px_#FFC10780] ring-2 ring-[#FFC107]";
+
+    return [
+      "w-4/5 aspect-square rounded-xl md:rounded-2xl transition-all duration-200",
+      isWinner ? winGlow : "",
+      !clicked[num] && !lock
+        ? `${hover} active:scale-95 cursor-pointer`
+        : "cursor-default",
+    ].filter(Boolean).join(" ");
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-7 bg-gray-100">
+    <main className="flex min-h-[100dvh] flex-col items-center justify-between py-8 px-4 bg-[#f5f5fa] dark:bg-[#0d0d14] transition-colors duration-300">
 
-      <div className="flex justify-center items-center w-[500px] h-28 gap-6">
-        <div className="flex w-60 h-16 items-center rounded-2xl">
-          <Image className="w-16" src={x} alt="X img" />
-          <Image className="w-16" src={o} alt="O img" />
-        </div>
-        <div className="bg-white w-60 h-16 items-center justify-center rounded-2xl flex">
-          {count % 2 === 0 ? (
-            <Image className="w-12" src={x} alt="X img" />
-          ) : (
-            <Image className="w-12" src={o} alt="O img" />
-          )}
-          <p className="font-semibold -mt-2 text-base">TURN</p>
+      {/* Header */}
+      <div className="flex justify-between items-center w-full max-w-[520px] mb-4 pr-12 md:pr-0">
+        <button
+          onClick={handleQuit}
+          className="flex items-center gap-1.5 font-orbitron font-bold text-xs md:text-sm text-black/30 dark:text-white/30 hover:text-black/70 dark:hover:text-white/70 transition-colors"
+        >
+          <Logout size={15} color="currentColor" />
+          QUITTER
+        </button>
+
+        <div
+          className="h-14 md:h-16 px-4 md:px-6 flex items-center gap-2 md:gap-3 rounded-2xl border bg-white dark:bg-white/5 border-black/10 dark:border-white/10 transition-colors"
+          style={{ boxShadow: `0 0 20px ${currentColor}25` }}
+        >
+          <div style={{ filter: `drop-shadow(0 0 8px ${currentColor})` }}>
+            <Image className="w-7 md:w-9" src={currentIcon} alt="tour" />
+          </div>
+          <p className="font-orbitron font-bold text-xs md:text-sm tracking-wider text-[#0d0d14] dark:text-white">TOUR</p>
         </div>
       </div>
 
-      <div className="bg-white w-[520px] flex auto h-[520px] px-5 rounded-2xl py-5">
-        <div className="row1">
-          {[0, 1, 2].map((num) => (
-            <div
-              key={num}
-              className={`flex w-40 items-center justify-items-center h-40 border-solid border-t-0 border-l-0 border-[1.5px] border-[#C5C5C5] ${num === 2 ? 'border-b-0' : ''}`}
-            >
+      {/* Board */}
+      <div className="bg-white dark:bg-[#13131f] border border-black/10 dark:border-white/10 w-full max-w-[520px] aspect-square rounded-2xl p-3 md:p-5 mb-6 shadow-sm dark:[box-shadow:0_0_40px_rgba(0,0,0,0.6)] transition-colors duration-300">
+        <div className="grid grid-cols-3 w-full h-full">
+          {Array(9).fill(null).map((_, num) => {
+            const row = Math.floor(num / 3);
+            const col = num % 3;
+            return (
               <div
-                className={`w-32 m-6 rounded-2xl boxes h-28 ${clicked[num] ? '' : hover}`}
-                onClick={() => { toggle(num); }}
-                style={{ cursor: clicked[num] ? "default" : "pointer" }}
+                key={num}
+                className={`flex items-center justify-center
+                  ${col < 2 ? "border-r border-black/[0.08] dark:border-white/[0.08]" : ""}
+                  ${row < 2 ? "border-b border-black/[0.08] dark:border-white/[0.08]" : ""}
+                `}
               >
-                {renderImage(num)}
+                <div className={getCellClass(num)} onClick={() => toggle(num)}>
+                  {renderImage(num)}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="row2">
-          {[3, 4, 5].map((num) => (
-            <div
-              key={num}
-              className={`flex w-40 h-40 border-solid border-[1.5px] border-t-0 border-[#C5C5C5] ${num === 5 ? 'border-b-0' : ''}`}
-            >
-              <div
-                className={`w-32 m-6 rounded-2xl boxes h-28 ${clicked[num] ? '' : hover}`}
-                onClick={() => { toggle(num); }}
-                style={{ cursor: clicked[num] ? "default" : "pointer" }}
-              >
-                {renderImage(num)}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="row3">
-          {[6, 7, 8].map((num) => (
-            <div
-              key={num}
-              className={`flex w-40 h-40 border-solid border-t-0 border-r-0 border-[1.5px] border-[#C5C5C5] ${num === 8 ? 'border-b-0' : ''}`}
-            >
-              <div
-                className={`w-32 m-6 rounded-2xl boxes h-28 ${clicked[num] ? '' : hover}`}
-                onClick={() => { toggle(num); }}
-                style={{ cursor: clicked[num] ? "default" : "pointer" }}
-              >
-                {renderImage(num)}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
-      <div className="flex justify-center items-center w-[500px] h-28 gap-6 -mb-10">
-        <div className="text-center font-semibold text-base p-3 bg-[#4FC3F7] w-60 h-16 rounded-2xl">
-          X (CPU) <br />{xscore}
+      {/* Scores */}
+      <div className="flex justify-center items-center w-full max-w-[520px] gap-4 md:gap-6">
+        <div className="text-center p-3 bg-[#4FC3F7]/15 border border-[#4FC3F7]/40 flex-1 h-16 rounded-2xl">
+          <p className="font-orbitron font-bold text-[10px] md:text-xs tracking-wide truncate text-[#0d0d14] dark:text-[#4FC3F7]">{playerX}</p>
+          <p className="font-orbitron font-black text-xl md:text-2xl text-[#0d0d14] dark:text-white leading-tight">{xscore}</p>
         </div>
-        <div className="text-center font-semibold text-base p-3 bg-[#FFC107] w-60 h-16 rounded-2xl">
-          O (YOU) <br />{oscore}
+        <div className="text-center p-3 bg-[#FFC107]/15 border border-[#FFC107]/40 flex-1 h-16 rounded-2xl">
+          <p className="font-orbitron font-bold text-[10px] md:text-xs tracking-wide truncate text-[#0d0d14] dark:text-[#FFC107]">{playerO}</p>
+          <p className="font-orbitron font-black text-xl md:text-2xl text-[#0d0d14] dark:text-white leading-tight">{oscore}</p>
         </div>
       </div>
 
@@ -180,10 +197,8 @@ const Page = () => {
         show={showModal}
         winner={winner}
         onRetry={resetGame}
-        onQuit={() => window.location.href = './info'}
+        onQuit={handleQuit}
       />
-
-
     </main>
   );
 };
